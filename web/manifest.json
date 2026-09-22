@@ -1,0 +1,19 @@
+{
+    "name": "Tic-Tac-Toe",
+    "short_name": "Tic-Tac-Toe",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "A fun Tic-Tac-Toe game built with Flutter.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "Image.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}

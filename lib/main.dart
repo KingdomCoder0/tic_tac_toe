@@ -1,7 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
+
 import 'game_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await windowManager.ensureInitialized();
+
+  const windowOptions = WindowOptions(
+    title: 'Tic-Tac-Toe',
+    size: Size(700, 900),
+    minimumSize: Size(300, 600),
+    center: true,
+  );
+
+  windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () async {
+      await windowManager.show();
+      await windowManager.focus();
+    },
+  );
+
   runApp(const TicTacToeApp());
 }
 

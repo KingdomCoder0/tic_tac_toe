@@ -249,22 +249,20 @@ class _GamePageState extends State<GamePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tic Tac Toe'),
+        title: const Text('Tic-Tac-Toe'),
         centerTitle: true,
       ),
 
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 500,
-            ),
-
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 500,
+              ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
 
                 children: [
                   // ------------------------------------------------

@@ -15,23 +15,29 @@ class GameBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: 500,
+        maxHeight: 500,
+      ),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: 9,
+          itemBuilder: (context, index) {
+            return GameCell(
+              value: board[index],
+              isWinningCell: winningCells.contains(index),
+              onTap: () => onCellTap(index),
+            );
+          },
         ),
-        itemCount: 9,
-        itemBuilder: (context, index) {
-          return GameCell(
-            value: board[index],
-            isWinningCell: winningCells.contains(index),
-            onTap: () => onCellTap(index),
-          );
-        },
       ),
     );
   }

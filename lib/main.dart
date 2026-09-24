@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'game_page.dart';
@@ -6,23 +7,28 @@ import 'game_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await windowManager.ensureInitialized();
+  // Initialize the window manager for desktop platforms (Windows, macOS, Linux)
+  if (defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux) {
+        
+    await windowManager.ensureInitialized();
 
-  const windowOptions = WindowOptions(
-    title: 'Tic-Tac-Toe',
-    size: Size(700, 900),
-    minimumSize: Size(300, 600),
-    center: true,
-  );
+    const windowOptions = WindowOptions(
+      title: 'Tic-Tac-Toe',
+      size: Size(700, 900),
+      minimumSize: Size(300, 600),
+      center: true,
+    );
 
-  windowManager.waitUntilReadyToShow(
-    windowOptions,
-    () async {
-      await windowManager.show();
-      await windowManager.focus();
-    },
-  );
-
+    windowManager.waitUntilReadyToShow(
+      windowOptions,
+      () async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
+  }
   runApp(const TicTacToeApp());
 }
 

@@ -8,9 +8,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize the window manager for desktop platforms (Windows, macOS, Linux)
-  if (defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.linux) {
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+       defaultTargetPlatform == TargetPlatform.macOS ||
+       defaultTargetPlatform == TargetPlatform.linux)) {
         
     await windowManager.ensureInitialized();
 

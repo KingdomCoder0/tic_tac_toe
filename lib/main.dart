@@ -40,7 +40,7 @@ class TicTacToeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Tic Tac Toe',
+      title: 'Tic-Tac-Toe',
 
       // Light theme
       theme: ThemeData(

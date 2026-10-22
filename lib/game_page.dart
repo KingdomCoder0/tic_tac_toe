@@ -16,10 +16,17 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage> {
+  
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
+  bool _sidebarExpanded = true;
+
+  int _selectedDestination = 0;
+
   // ------------------------------------------------------------
   // GAME SETTINGS
   // ------------------------------------------------------------
-
   GameMode gameMode = GameMode.singlePlayer;
 
   AiDifficulty aiDifficulty = AiDifficulty.medium;
@@ -27,7 +34,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // GAME STATE
   // ------------------------------------------------------------
-
   List<String?> board = List.filled(9, null);
 
   String currentPlayer = 'X';
@@ -41,7 +47,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // PLAYER MOVE
   // ------------------------------------------------------------
-
   void makeMove(int index) {
     // Don't allow a move if the square is occupied.
     if (board[index] != null) {
@@ -85,7 +90,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // COMPUTER MOVE
   // ------------------------------------------------------------
-
   void computerMove() {
     if (winner != null || draw) {
       return;
@@ -121,7 +125,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // SWITCH PLAYER
   // ------------------------------------------------------------
-
   void switchPlayer() {
     if (currentPlayer == 'X') {
       currentPlayer = 'O';
@@ -133,7 +136,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // CHECK GAME STATE
   // ------------------------------------------------------------
-
   void checkGameState() {
   const winningCombinations = [
     [0, 1, 2],
@@ -168,7 +170,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // RESET GAME
   // ------------------------------------------------------------
-
   void resetGameState() {
     board = List.filled(9, null);
     currentPlayer = 'X';
@@ -186,7 +187,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // CHANGE GAME MODE
   // ------------------------------------------------------------
-
   void changeGameMode(GameMode? mode) {
     if (mode == null || mode == gameMode) return;
 
@@ -199,7 +199,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // CHANGE AI DIFFICULTY
   // ------------------------------------------------------------
-
   void changeDifficulty(AiDifficulty? difficulty) {
     if (difficulty == null || difficulty == aiDifficulty) return;
 
@@ -212,7 +211,6 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // STATUS TEXT
   // ------------------------------------------------------------
-
   String get status {
     if (winner == 'X') {
       return gameMode == GameMode.singlePlayer
@@ -244,130 +242,395 @@ class _GamePageState extends State<GamePage> {
   // ------------------------------------------------------------
   // BUILD
   // ------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 800;
+
     return Scaffold(
+      key: _scaffoldKey,
+
+      drawer: isWide
+          ? null
+          : Drawer(
+              child: SafeArea(
+                child: _buildNavigation(isWide: false),
+              ),
+            ),
+
       appBar: AppBar(
+        leading: isWide
+            ? null
+            : IconButton(
+                tooltip: 'Open navigation menu',
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+              ),
         title: const Text('Tic-Tac-Toe'),
         centerTitle: true,
       ),
 
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 500,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-
+        child: isWide
+            ? Row(
                 children: [
-                  // ------------------------------------------------
-                  // GAME MODE
-                  // ------------------------------------------------
-
-                  SegmentedButton<GameMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: GameMode.singlePlayer,
-                        label: Text('1 Player'),
-                        icon: Icon(Icons.person),
-                      ),
-                      ButtonSegment(
-                        value: GameMode.twoPlayer,
-                        label: Text('2 Players'),
-                        icon: Icon(Icons.people),
-                      ),
-                    ],
-
-                    selected: {gameMode},
-
-                    onSelectionChanged: (selection) {
-                      changeGameMode(selection.first);
-                    },
-                  ),
-
-                  // ------------------------------------------------
-                  // AI DIFFICULTY
-                  // ------------------------------------------------
-
-                  if (gameMode == GameMode.singlePlayer) ...[
-                    const SizedBox(height: 16),
-
-                    DropdownButtonFormField<AiDifficulty>(
-                      initialValue: aiDifficulty,
-
-                      decoration: const InputDecoration(
-                        labelText: 'Difficulty',
-                        border: OutlineInputBorder(),
-                      ),
-
-                      items: const [
-                        DropdownMenuItem(
-                          value: AiDifficulty.easy,
-                          child: Text('Easy'),
-                        ),
-                        DropdownMenuItem(
-                          value: AiDifficulty.medium,
-                          child: Text('Medium'),
-                        ),
-                        DropdownMenuItem(
-                          value: AiDifficulty.hard,
-                          child: Text('Hard'),
-                        ),
-                      ],
-
-                      onChanged: changeDifficulty,
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-
-                  // ------------------------------------------------
-                  // STATUS
-                  // ------------------------------------------------
-
-                  Text(
-                    status,
-
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // ------------------------------------------------
-                  // BOARD
-                  // ------------------------------------------------
-
-                  GameBoard(
-                    board: board,
-                    winningCells: winningCells,
-                    onCellTap: makeMove,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // ------------------------------------------------
-                  // NEW GAME
-                  // ------------------------------------------------
-
-                  FilledButton.icon(
-                    onPressed: resetGame,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('New Game'),
+                  _buildNavigation(isWide: true),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: _buildSelectedPage(),
                   ),
                 ],
-              ),
+              )
+            : _buildSelectedPage(),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // NAVIGATION
+  // ------------------------------------------------------------
+  void _selectDestination(int index, {required bool isWide}) {
+    setState(() {
+      _selectedDestination = index;
+    });
+
+    if (!isWide) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Widget _buildNavigation({required bool isWide}) {
+    if (!isWide) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          const ListTile(
+            leading: Icon(Icons.grid_3x3),
+            title: Text(
+              'Tic-Tac-Toe',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
+          const Divider(),
+
+          _buildDrawerItem(
+            icon: Icons.gamepad_outlined,
+            label: 'Game',
+            index: 0,
+          ),
+
+          _buildDrawerItem(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            index: 1,
+          ),
+
+          _buildDrawerItem(
+            icon: Icons.info_outline,
+            label: 'About',
+            index: 2,
+          ),
+        ],
+      );
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      width: _sidebarExpanded ? 220 : 72,
+      child: Column(
+        children: [
+          Align(
+            alignment: _sidebarExpanded 
+                ? Alignment.centerRight 
+                : Alignment.center,
+            child: IconButton(
+              tooltip: _sidebarExpanded
+                  ? 'Collapse sidebar'
+                  : 'Expand sidebar',
+              icon: Icon(
+                _sidebarExpanded
+                    ? Icons.menu_open
+                    : Icons.menu,
+              ),
+              onPressed: () {
+                setState(() {
+                  _sidebarExpanded = !_sidebarExpanded;
+                });
+              },
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          Expanded(
+            child: NavigationRail(
+              extended: _sidebarExpanded,
+              minWidth: 72,
+              minExtendedWidth: 220,
+              selectedIndex: _selectedDestination,
+              labelType: _sidebarExpanded
+                  ? null
+                  : NavigationRailLabelType.none,
+              onDestinationSelected: (index) {
+                _selectDestination(index, isWide: true);
+              },
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.gamepad_outlined),
+                  selectedIcon: Icon(Icons.gamepad),
+                  label: Text('Game'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings),
+                  label: Text('Settings'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.info_outline),
+                  selectedIcon: Icon(Icons.info),
+                  label: Text('About'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      selected: _selectedDestination == index,
+      onTap: () {
+        _selectDestination(index, isWide: false);
+      },
+    );
+  }
+
+  // ------------------------------------------------------------
+  // PAGE CONTENT
+  // ------------------------------------------------------------
+  Widget _buildSelectedPage() {
+    switch (_selectedDestination) {
+      case 1:
+        return _buildSettingsPage();
+      case 2:
+        return _buildAboutPage();
+      default:
+        return _buildGamePage();
+    }
+  }
+
+  // ------------------------------------------------------------
+  // GAME PAGE
+  // ------------------------------------------------------------
+  Widget _buildGamePage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ------------------------------------------------
+              // GAME MODE
+              // ------------------------------------------------
+              SegmentedButton<GameMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: GameMode.singlePlayer,
+                    label: Text('1 Player'),
+                    icon: Icon(Icons.person),
+                  ),
+                  ButtonSegment(
+                    value: GameMode.twoPlayer,
+                    label: Text('2 Players'),
+                    icon: Icon(Icons.people),
+                  ),
+                ],
+                selected: {gameMode},
+                onSelectionChanged: (selection) {
+                  changeGameMode(selection.first);
+                },
+              ),
+
+              // ------------------------------------------------
+              // AI DIFFICULTY
+              // ------------------------------------------------
+              if (gameMode == GameMode.singlePlayer) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<AiDifficulty>(
+                  initialValue: aiDifficulty,
+                  decoration: const InputDecoration(
+                    labelText: 'Difficulty',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: AiDifficulty.easy,
+                      child: Text('Easy'),
+                    ),
+                    DropdownMenuItem(
+                      value: AiDifficulty.medium,
+                      child: Text('Medium'),
+                    ),
+                    DropdownMenuItem(
+                      value: AiDifficulty.hard,
+                      child: Text('Hard'),
+                    ),
+                  ],
+                  onChanged: changeDifficulty,
+                ),
+              ],
+
+              const SizedBox(height: 24),
+
+              // ------------------------------------------------
+              // STATUS
+              // ------------------------------------------------
+              Text(
+                status,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 30),
+
+              // ------------------------------------------------
+              // BOARD
+              // ------------------------------------------------
+              GameBoard(
+                board: board,
+                winningCells: winningCells,
+                onCellTap: makeMove,
+              ),
+
+              const SizedBox(height: 30),
+              
+              // ------------------------------------------------
+              // NEW GAME
+              // ------------------------------------------------
+              FilledButton.icon(
+                onPressed: resetGame,
+                icon: const Icon(Icons.refresh),
+                label: const Text('New Game'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // SETTINGS PAGE
+  // ------------------------------------------------------------
+  Widget _buildSettingsPage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Settings',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 24),
+
+              SegmentedButton<GameMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: GameMode.singlePlayer,
+                    label: Text('1 Player'),
+                    icon: Icon(Icons.person),
+                  ),
+                  ButtonSegment(
+                    value: GameMode.twoPlayer,
+                    label: Text('2 Players'),
+                    icon: Icon(Icons.people),
+                  ),
+                ],
+                selected: {gameMode},
+                onSelectionChanged: (selection) {
+                  changeGameMode(selection.first);
+                },
+              ),
+
+              if (gameMode == GameMode.singlePlayer) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<AiDifficulty>(
+                  initialValue: aiDifficulty,
+                  decoration: const InputDecoration(
+                    labelText: 'AI difficulty',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: AiDifficulty.easy,
+                      child: Text('Easy'),
+                    ),
+                    DropdownMenuItem(
+                      value: AiDifficulty.medium,
+                      child: Text('Medium'),
+                    ),
+                    DropdownMenuItem(
+                      value: AiDifficulty.hard,
+                      child: Text('Hard'),
+                    ),
+                  ],
+                  onChanged: changeDifficulty,
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Text(
+                'Changing the game mode or difficulty '
+                'starts a new game.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // ABOUT PAGE
+  // ------------------------------------------------------------
+  Widget _buildAboutPage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.grid_3x3, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'Tic-Tac-Toe',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text('A Tic-Tac-Toe game built with Flutter.'),
+            const SizedBox(height: 16),
+            const Text('Play against the computer or another player.'),
+          ],
         ),
       ),
     );

@@ -1,18 +1,30 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'game_page.dart';
 
-void main() async {
+const _themePreferenceKey = 'themeMode';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize the window manager for desktop platforms (Windows, macOS, Linux)
+  // Load the saved theme before starting the app.
+  final preferences = await SharedPreferences.getInstance();
+  final savedTheme = preferences.getString(_themePreferenceKey);
+
+  final initialThemeMode = ThemeMode.values.firstWhere(
+    (mode) => mode.name == savedTheme,
+    orElse: () => ThemeMode.system,
+  );
+
+  // Initialize the window manager on desktop only.
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
-       defaultTargetPlatform == TargetPlatform.macOS ||
-       defaultTargetPlatform == TargetPlatform.linux)) {
-        
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
     await windowManager.ensureInitialized();
 
     const windowOptions = WindowOptions(
@@ -30,11 +42,39 @@ void main() async {
       },
     );
   }
-  runApp(const TicTacToeApp());
+
+  runApp(TicTacToeApp(initialThemeMode: initialThemeMode));
 }
 
-class TicTacToeApp extends StatelessWidget {
-  const TicTacToeApp({super.key});
+class TicTacToeApp extends StatefulWidget {
+  const TicTacToeApp({
+    super.key,
+    required this.initialThemeMode,
+  });
+
+  final ThemeMode initialThemeMode;
+
+  @override
+  State<TicTacToeApp> createState() => _TicTacToeAppState();
+}
+
+class _TicTacToeAppState extends State<TicTacToeApp> {
+  late ThemeMode _themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = widget.initialThemeMode;
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    setState(() {
+      _themeMode = mode;
+    });
+
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_themePreferenceKey, mode.name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +82,6 @@ class TicTacToeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Tic-Tac-Toe',
 
-      // Light theme
       theme: ThemeData(
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
@@ -52,7 +91,6 @@ class TicTacToeApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Dark theme
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
@@ -62,10 +100,12 @@ class TicTacToeApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Follow the user's operating-system/browser preference.
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
 
-      home: const GamePage(),
+      home: GamePage(
+        themeMode: _themeMode,
+        onThemeModeChanged: _setThemeMode,
+      ),
     );
   }
 }

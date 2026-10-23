@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'game_board.dart';
 import 'tic_tac_toe_ai.dart';
@@ -9,7 +10,14 @@ enum GameMode {
 }
 
 class GamePage extends StatefulWidget {
-  const GamePage({super.key});
+  const GamePage({
+    super.key,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
+
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<GamePage> createState() => _GamePageState();
@@ -551,57 +559,49 @@ class _GamePageState extends State<GamePage> {
                 'Settings',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
+
               const SizedBox(height: 24),
 
-              SegmentedButton<GameMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: GameMode.singlePlayer,
-                    label: Text('1 Player'),
-                    icon: Icon(Icons.person),
+              Text(
+                'Appearance',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+
+              const SizedBox(height: 8),
+
+              DropdownButtonFormField<ThemeMode>(
+                initialValue: widget.themeMode,
+                decoration: const InputDecoration(
+                  labelText: 'Theme',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: ThemeMode.system,
+                    child: Text('System Default'),
                   ),
-                  ButtonSegment(
-                    value: GameMode.twoPlayer,
-                    label: Text('2 Players'),
-                    icon: Icon(Icons.people),
+                  DropdownMenuItem(
+                    value: ThemeMode.light,
+                    child: Text('Light'),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.dark,
+                    child: Text('Dark'),
                   ),
                 ],
-                selected: {gameMode},
-                onSelectionChanged: (selection) {
-                  changeGameMode(selection.first);
+                onChanged: (mode) {
+                  if (mode != null) {
+                    widget.onThemeModeChanged(mode);
+                  }
                 },
               ),
 
-              if (gameMode == GameMode.singlePlayer) ...[
-                const SizedBox(height: 16),
-                DropdownButtonFormField<AiDifficulty>(
-                  initialValue: aiDifficulty,
-                  decoration: const InputDecoration(
-                    labelText: 'AI difficulty',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: AiDifficulty.easy,
-                      child: Text('Easy'),
-                    ),
-                    DropdownMenuItem(
-                      value: AiDifficulty.medium,
-                      child: Text('Medium'),
-                    ),
-                    DropdownMenuItem(
-                      value: AiDifficulty.hard,
-                      child: Text('Hard'),
-                    ),
-                  ],
-                  onChanged: changeDifficulty,
-                ),
-              ],
+              const SizedBox(height: 12),
 
-              const SizedBox(height: 16),
-              const Text(
-                'Changing the game mode or difficulty '
-                'starts a new game.',
+              Text(
+                'System Default follows your device or browser '
+                'appearance. Light and Dark override it.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -612,26 +612,65 @@ class _GamePageState extends State<GamePage> {
 
   // ------------------------------------------------------------
   // ABOUT PAGE
-  // ------------------------------------------------------------
-  Widget _buildAboutPage() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.grid_3x3, size: 64),
-            const SizedBox(height: 16),
-            Text(
-              'Tic-Tac-Toe',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            const Text('A Tic-Tac-Toe game built with Flutter.'),
-            const SizedBox(height: 16),
-            const Text('Play against the computer or another player.'),
-          ],
+  // ------------------------------------------------------------  
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(
+      'https://kingdomcoder0.github.io/tic_tac_toe/privacy-policy.html',
+    );
+
+    final opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open the privacy policy.'),
         ),
+      );
+    }
+  }
+
+  Widget _buildAboutPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.grid_3x3, size: 64),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tic-Tac-Toe',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'A Tic-Tac-Toe game built with Flutter.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Play against the computer or another player.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          TextButton.icon(
+            onPressed: _openPrivacyPolicy,
+            icon: const Icon(Icons.privacy_tip_outlined),
+            label: const Text('Privacy Policy'),
+          ),
+        ],
       ),
     );
   }

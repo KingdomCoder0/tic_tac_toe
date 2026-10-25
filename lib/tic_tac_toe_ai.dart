@@ -10,26 +10,34 @@ class TicTacToeAI {
   static final Random _random = Random();
 
   /// Returns the computer's chosen move.
+  ///
+  /// [aiSymbol] is the computer's symbol, either X or O.
+  /// [humanSymbol] is the human player's symbol.
   static int findMove(
     List<String?> board,
-    AiDifficulty difficulty,
-  ) {
+    AiDifficulty difficulty, {
+    required String aiSymbol,
+    required String humanSymbol,
+  }) {
+    assert(aiSymbol != humanSymbol);
+    assert(
+      (aiSymbol == 'X' || aiSymbol == 'O') &&
+      (humanSymbol == 'X' || humanSymbol == 'O'),
+    );
+
     switch (difficulty) {
       case AiDifficulty.easy:
         return _randomMove(board);
 
       case AiDifficulty.medium:
-        return _mediumMove(board);
+        return _mediumMove(board, aiSymbol, humanSymbol);
 
       case AiDifficulty.hard:
-        return _hardMove(board);
+        return _hardMove(board, aiSymbol, humanSymbol);
     }
   }
 
-  // ------------------------------------------------------------
-  // EASY
-  // ------------------------------------------------------------
-
+  // EASY: choose any available square.
   static int _randomMove(List<String?> board) {
     final availableMoves = _availableMoves(board);
 
@@ -37,54 +45,54 @@ class TicTacToeAI {
         _random.nextInt(availableMoves.length)];
   }
 
-  // ------------------------------------------------------------
-  // MEDIUM
-  // ------------------------------------------------------------
-
-  static int _mediumMove(List<String?> board) {
+  // MEDIUM: win if possible, otherwise block, otherwise play randomly.
+  static int _mediumMove(
+    List<String?> board,
+    String aiSymbol,
+    String humanSymbol,
+  ) {
     final availableMoves = _availableMoves(board);
 
-    // First, see if the computer can win.
     for (final move in availableMoves) {
       final testBoard = List<String?>.from(board);
-      testBoard[move] = 'O';
+      testBoard[move] = aiSymbol;
 
-      if (_checkWinner(testBoard) == 'O') {
+      if (_checkWinner(testBoard) == aiSymbol) {
         return move;
       }
     }
 
-    // If we can't win, see if we need to block the player.
     for (final move in availableMoves) {
       final testBoard = List<String?>.from(board);
-      testBoard[move] = 'X';
+      testBoard[move] = humanSymbol;
 
-      if (_checkWinner(testBoard) == 'X') {
+      if (_checkWinner(testBoard) == humanSymbol) {
         return move;
       }
     }
 
-    // Otherwise make a random move.
     return availableMoves[
         _random.nextInt(availableMoves.length)];
   }
 
-  // ------------------------------------------------------------
-  // HARD
-  // ------------------------------------------------------------
-
-  static int _hardMove(List<String?> board) {
+  // HARD: use minimax to choose an optimal move.
+  static int _hardMove(
+    List<String?> board,
+    String aiSymbol,
+    String humanSymbol,
+  ) {
     int bestScore = -1000;
     int bestMove = -1;
 
     for (final move in _availableMoves(board)) {
       final testBoard = List<String?>.from(board);
-
-      testBoard[move] = 'O';
+      testBoard[move] = aiSymbol;
 
       final score = _minimax(
         testBoard,
         false,
+        aiSymbol,
+        humanSymbol,
       );
 
       if (score > bestScore) {
@@ -96,39 +104,31 @@ class TicTacToeAI {
     return bestMove;
   }
 
-  // ------------------------------------------------------------
-  // MINIMAX
-  // ------------------------------------------------------------
-
+  // MINIMAX: the AI maximizes the score; the human minimizes it.
   static int _minimax(
     List<String?> board,
     bool maximizing,
+    String aiSymbol,
+    String humanSymbol,
   ) {
     final winner = _checkWinner(board);
 
-    if (winner == 'O') {
-      return 10;
-    }
-
-    if (winner == 'X') {
-      return -10;
-    }
-
-    if (!board.contains(null)) {
-      return 0;
-    }
+    if (winner == aiSymbol) return 10;
+    if (winner == humanSymbol) return -10;
+    if (!board.contains(null)) return 0;
 
     if (maximizing) {
       int bestScore = -1000;
 
       for (final move in _availableMoves(board)) {
         final testBoard = List<String?>.from(board);
-
-        testBoard[move] = 'O';
+        testBoard[move] = aiSymbol;
 
         final score = _minimax(
           testBoard,
           false,
+          aiSymbol,
+          humanSymbol,
         );
 
         bestScore = max(bestScore, score);
@@ -140,12 +140,13 @@ class TicTacToeAI {
 
       for (final move in _availableMoves(board)) {
         final testBoard = List<String?>.from(board);
-
-        testBoard[move] = 'X';
+        testBoard[move] = humanSymbol;
 
         final score = _minimax(
           testBoard,
           true,
+          aiSymbol,
+          humanSymbol,
         );
 
         bestScore = min(bestScore, score);
@@ -155,14 +156,12 @@ class TicTacToeAI {
     }
   }
 
-  // ------------------------------------------------------------
   // HELPERS
-  // ------------------------------------------------------------
 
   static List<int> _availableMoves(List<String?> board) {
     final moves = <int>[];
 
-    for (int i = 0; i < board.length; i++) {
+    for (var i = 0; i < board.length; i++) {
       if (board[i] == null) {
         moves.add(i);
       }
@@ -176,11 +175,9 @@ class TicTacToeAI {
       [0, 1, 2],
       [3, 4, 5],
       [6, 7, 8],
-
       [0, 3, 6],
       [1, 4, 7],
       [2, 5, 8],
-
       [0, 4, 8],
       [2, 4, 6],
     ];

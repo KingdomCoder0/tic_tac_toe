@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -26,7 +26,7 @@ jobs:
         run: dart run msix:create --install-certificate false
 
       - name: Upload MSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tic-tac-toe-windows-msix
           path: build/windows/x64/runner/Release/*.msix

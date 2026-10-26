@@ -6,7 +6,7 @@ class AboutPage extends StatelessWidget {
 
   Future<void> _openPrivacyPolicy(BuildContext context) async {
     final uri = Uri.parse(
-      'https://kingdomcoder0.github.io/tic_tac_toe/privacy-policy.html',
+      'https://kingdomcoder0.github.io/tic_tac_toe/privacy-policy',
     );
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 

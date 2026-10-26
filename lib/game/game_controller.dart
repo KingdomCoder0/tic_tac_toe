@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tic_tac_toe_ai.dart';
 import 'game_settings.dart';
@@ -37,6 +38,61 @@ class GameController extends ChangeNotifier {
   bool _nextHumanStarts = true;
   bool _roundCompleted = false;
   int _generation = 0;
+  bool _initialized = false;
+
+  static const _gameModeKey = 'gameMode';
+  static const _difficultyKey = 'aiDifficulty';
+  static const _humanSymbolKey = 'playerSymbol';
+  static const _turnOrderKey = 'turnOrder';
+
+  /// Loads saved game settings before the first round begins.
+  /// Call this before [start] so the AI does not make an opening move using defaults.
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    _gameMode = _enumFromName(
+      GameMode.values,
+      prefs.getString(_gameModeKey),
+      GameMode.singlePlayer,
+    );
+    _aiDifficulty = _enumFromName(
+      AiDifficulty.values,
+      prefs.getString(_difficultyKey),
+      AiDifficulty.medium,
+    );
+    _humanSymbol = _enumFromName(
+      PlayerSymbol.values,
+      prefs.getString(_humanSymbolKey),
+      PlayerSymbol.x,
+    );
+    _turnOrder = _enumFromName(
+      TurnOrder.values,
+      prefs.getString(_turnOrderKey),
+      TurnOrder.alwaysFirst,
+    );
+
+    _initialized = true;
+    _startNewRound();
+    notifyListeners();
+  }
+
+  T _enumFromName<T extends Enum>(List<T> values, String? name, T fallback) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return fallback;
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.setString(_gameModeKey, _gameMode.name),
+      prefs.setString(_difficultyKey, _aiDifficulty.name),
+      prefs.setString(_humanSymbolKey, _humanSymbol.name),
+      prefs.setString(_turnOrderKey, _turnOrder.name),
+    ]);
+  }
 
   bool get isGameOver => winner != null || draw;
 
@@ -167,18 +223,21 @@ class GameController extends ChangeNotifier {
   void changeGameMode(GameMode mode) {
     if (mode == _gameMode) return;
     _gameMode = mode;
+    unawaited(_saveSettings());
     newGame();
   }
 
   void changeDifficulty(AiDifficulty difficulty) {
     if (difficulty == _aiDifficulty) return;
     _aiDifficulty = difficulty;
+    unawaited(_saveSettings());
     newGame();
   }
 
   void changeHumanSymbol(PlayerSymbol symbol) {
     if (symbol == _humanSymbol) return;
     _humanSymbol = symbol;
+    unawaited(_saveSettings());
     newGame();
   }
 
@@ -186,6 +245,7 @@ class GameController extends ChangeNotifier {
     if (order == _turnOrder) return;
     _turnOrder = order;
     if (order == TurnOrder.alternate) _nextHumanStarts = true;
+    unawaited(_saveSettings());
     newGame();
   }
 

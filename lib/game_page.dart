@@ -32,7 +32,7 @@ class _GamePageState extends State<GamePage> {
     super.initState();
     _controller = GameController();
     _controller.addListener(_onControllerChanged);
-    _controller.start();
+    _initializeController();
   }
 
   void _onControllerChanged() {
@@ -117,5 +117,13 @@ class _GamePageState extends State<GamePage> {
       default:
         return GameScreen(controller: _controller);
     }
+  }
+
+  Future<void> _initializeController() async {
+    await _controller.initialize();
+
+    if (!mounted) return;
+
+    _controller.start();
   }
 }

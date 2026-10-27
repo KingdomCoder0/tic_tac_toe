@@ -249,35 +249,6 @@ jobs:
             throw "Failed to sign the MSIX bundle."
           }
 
-      - name: Publish GitHub distribution to release
-        if: ${{ inputs.release_tag != '' && !inputs.store }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        shell: pwsh
-        run: |
-          gh release view "$env:RELEASE_TAG" *> $null
-
-          if ($LASTEXITCODE -ne 0) {
-            gh release create "$env:RELEASE_TAG" `
-              --target "$env:GITHUB_REF_NAME" `
-              --title "$env:RELEASE_TAG" `
-              --generate-notes
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "Could not create GitHub Release $env:RELEASE_TAG"
-            }
-          }
-
-          gh release upload "$env:RELEASE_TAG" `
-            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle" `
-            "dist/Tic-Tac-Toe-signing.cer" `
-            --clobber
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to upload the bundle to the GitHub Release."
-          }
-
       - name: Upload GitHub distribution bundle artifact
         if: ${{ !inputs.store }}
         uses: actions/upload-artifact@v6
@@ -295,3 +266,27 @@ jobs:
           name: tic-tac-toe-store-msixbundle
           path: dist/Tic-Tac-Toe-1.1.0.0.msixbundle
           if-no-files-found: error
+
+      - name: Publish GitHub distribution to existing release
+        if: ${{ inputs.release_tag != '' && !inputs.store }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_REPO: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          gh release view "$env:RELEASE_TAG" --repo "$env:GH_REPO"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release '$env:RELEASE_TAG' does not exist in $env:GH_REPO. No release was created."
+          }
+
+          gh release upload "$env:RELEASE_TAG" `
+            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle" `
+            "dist/Tic-Tac-Toe-signing.cer" `
+            --repo "$env:GH_REPO" `
+            --clobber
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload the GitHub distribution assets."
+          }

@@ -1,11 +1,36 @@
-name: Build a Windows MSIX package
+name: Build a Windows MSIX Bundle
 
 on:
   workflow_dispatch:
+    inputs:
+      store:
+        description: "Build for Microsoft Store"
+        required: true
+        type: boolean
+        default: false
+
+      release_tag:
+        description: "GitHub Release tag (leave blank to skip release upload)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
 
 jobs:
   build-msix:
-    runs-on: windows-latest
+    name: Build ${{ matrix.arch }} MSIX
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-vs2026-arm
 
     steps:
       - name: Checkout repository
@@ -19,15 +44,164 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Verify runner architecture
+        shell: pwsh
+        run: |
+          Write-Host "Requested build architecture: ${{ matrix.arch }}"
+          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
+
       - name: Build Windows application
         run: flutter build windows --release
 
-      - name: Build MSIX
-        run: dart run msix:create --install-certificate false
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          $exe = "build/windows/${{ matrix.arch }}/runner/Release/tic_tac_toe.exe"
+          if (!(Test-Path $exe)) {
+            throw "Expected executable not found: $exe"
+          }
 
-      - name: Upload MSIX artifact
+      - name: Create MSIX for GitHub distribution
+        if: ${{ !inputs.store }}
+        shell: pwsh
+        run: |
+          dart run msix:create `
+            --architecture "${{ matrix.arch }}" `
+            --output-name "tic_tac_toe-${{ matrix.arch }}" `
+            --sign-msix false `
+            --install-certificate false
+
+      - name: Create MSIX for Microsoft Store
+        if: ${{ inputs.store }}
+        shell: pwsh
+        run: |
+          dart run msix:create `
+            --architecture "${{ matrix.arch }}" `
+            --output-name "tic_tac_toe-${{ matrix.arch }}" `
+            --store `
+            --sign-msix false `
+            --install-certificate false
+
+      - name: Upload architecture package
         uses: actions/upload-artifact@v5
         with:
-          name: tic-tac-toe-windows-msix
-          path: build/windows/x64/runner/Release/*.msix
+          name: tic-tac-toe-msix-${{ matrix.arch }}
+          path: build/windows/${{ matrix.arch }}/runner/Release/tic_tac_toe-${{ matrix.arch }}.msix
           if-no-files-found: error
+          retention-days: 14
+
+  bundle:
+    name: Create MSIX bundle
+    needs: build-msix
+    runs-on: windows-latest
+
+    steps:
+      - name: Download architecture packages
+        uses: actions/download-artifact@v5
+        with:
+          pattern: tic-tac-toe-msix-*
+          path: packages
+          merge-multiple: true
+
+      - name: Verify downloaded packages
+        shell: pwsh
+        run: |
+          Get-ChildItem packages -Filter *.msix
+
+          $x64 = Test-Path "packages/tic_tac_toe-x64.msix"
+          $arm64 = Test-Path "packages/tic_tac_toe-arm64.msix"
+
+          if (!$x64 -or !$arm64) {
+            throw "Both x64 and ARM64 MSIX packages are required."
+          }
+
+      - name: Create MSIX bundle
+        shell: pwsh
+        run: |
+          $makeAppx = Get-ChildItem `
+            "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter MakeAppx.exe -Recurse |
+            Where-Object { $_.FullName -match '\\x64\\MakeAppx.exe$' } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (!$makeAppx) {
+            throw "MakeAppx.exe was not found in the Windows SDK."
+          }
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          & $makeAppx.FullName bundle /v /o `
+            /bv 1.1.0.0 `
+            /d packages `
+            /p "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "MakeAppx bundle failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Sign GitHub distribution bundle
+        if: ${{ !inputs.store }}
+        shell: pwsh
+        run: |
+          $publisher = "CN=A3DC862A-65F6-47CB-AD5A-4F816BDE4C0C"
+
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject $publisher `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -HashAlgorithm SHA256
+
+          $signtool = Get-ChildItem `
+            "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter signtool.exe -Recurse |
+            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (!$signtool) {
+            throw "SignTool.exe was not found in the Windows SDK."
+          }
+
+          & $signtool.FullName sign /fd SHA256 /s My `
+            /sha1 $cert.Thumbprint `
+            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signing the bundle failed."
+          }
+
+          Export-Certificate `
+            -Cert $cert `
+            -FilePath "dist/Tic-Tac-Toe-signing.cer" |
+            Out-Null
+
+      - name: Upload GitHub distribution bundle
+        if: ${{ !inputs.store }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: tic-tac-toe-windows-msixbundle
+          path: |
+            dist/Tic-Tac-Toe-1.1.0.0.msixbundle
+            dist/Tic-Tac-Toe-signing.cer
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Microsoft Store bundle
+        if: ${{ inputs.store }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: tic-tac-toe-store-msixbundle
+          path: dist/Tic-Tac-Toe-1.1.0.0.msixbundle
+          if-no-files-found: error
+          retention-days: 14
+      
+      - name: Publish bundle to GitHub Release
+        if: ${{ inputs.release_tag != '' && !inputs.store }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/Tic-Tac-Toe-1.1.0.0.msixbundle
+            dist/Tic-Tac-Toe-signing.cer
+          fail_on_unmatched_files: true

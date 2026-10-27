@@ -40,15 +40,51 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.8'
+          architecture: x64
+
+      - name: Set up ARM64 Dart SDK
+        if: ${{ matrix.arch == 'arm64' }}
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') {
+            throw "Expected an ARM64 runner."
+          }
+
+          $flutterCommand = Get-Command flutter
+          $flutterRoot = Split-Path `
+            (Split-Path $flutterCommand.Source -Parent) -Parent
+
+          Write-Host "Flutter SDK: $flutterRoot"
+
+          Remove-Item `
+            "$flutterRoot\bin\cache\engine-dart-sdk.stamp" `
+            -Force -ErrorAction SilentlyContinue
+
+          & "$flutterRoot\bin\internal\update_dart_sdk.ps1"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to update the Dart SDK."
+          }
+
+          $dartVersion = & "$flutterRoot\bin\dart.bat" --version 2>&1
+          Write-Host $dartVersion
+
+          if ("$dartVersion" -notmatch 'windows_arm64') {
+            throw "Expected an ARM64 Dart SDK."
+          }
+
+          & "$flutterRoot\bin\flutter.bat" precache --windows
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Flutter Windows precache failed."
+          }
+
+      - name: Verify Flutter installation
+        run: flutter --version
 
       - name: Get Flutter dependencies
         run: flutter pub get
-
-      - name: Verify runner architecture
-        shell: pwsh
-        run: |
-          Write-Host "Requested build architecture: ${{ matrix.arch }}"
-          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
 
       - name: Build Windows application
         run: flutter build windows --release
@@ -57,6 +93,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = "build/windows/${{ matrix.arch }}/runner/Release/tic_tac_toe.exe"
+
           if (!(Test-Path $exe)) {
             throw "Expected executable not found: $exe"
           }
@@ -82,13 +119,21 @@ jobs:
             --sign-msix false `
             --install-certificate false
 
+      - name: Verify MSIX package
+        shell: pwsh
+        run: |
+          $package = "build/windows/${{ matrix.arch }}/runner/Release/tic_tac_toe-${{ matrix.arch }}.msix"
+
+          if (!(Test-Path $package)) {
+            throw "Expected MSIX package not found: $package"
+          }
+
       - name: Upload architecture package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tic-tac-toe-msix-${{ matrix.arch }}
           path: build/windows/${{ matrix.arch }}/runner/Release/tic_tac_toe-${{ matrix.arch }}.msix
           if-no-files-found: error
-          retention-days: 14
 
   bundle:
     name: Create MSIX bundle
@@ -97,7 +142,7 @@ jobs:
 
     steps:
       - name: Download architecture packages
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: tic-tac-toe-msix-*
           path: packages
@@ -108,39 +153,42 @@ jobs:
         run: |
           Get-ChildItem packages -Filter *.msix
 
-          $x64 = Test-Path "packages/tic_tac_toe-x64.msix"
-          $arm64 = Test-Path "packages/tic_tac_toe-arm64.msix"
-
-          if (!$x64 -or !$arm64) {
-            throw "Both x64 and ARM64 MSIX packages are required."
+          if (!(Test-Path "packages/tic_tac_toe-x64.msix")) {
+            throw "The x64 MSIX package is missing."
           }
 
-      - name: Create MSIX bundle
+          if (!(Test-Path "packages/tic_tac_toe-arm64.msix")) {
+            throw "The ARM64 MSIX package is missing."
+          }
+
+      - name: Find Windows SDK tools
+        id: sdk
         shell: pwsh
         run: |
-          $makeAppx = Get-ChildItem `
-            "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
-            -Filter MakeAppx.exe -Recurse |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+
+          $makeAppx = Get-ChildItem $sdkRoot -Filter MakeAppx.exe -Recurse |
             Where-Object { $_.FullName -match '\\x64\\MakeAppx.exe$' } |
             Sort-Object FullName -Descending |
             Select-Object -First 1
 
+          $signTool = Get-ChildItem $sdkRoot -Filter signtool.exe -Recurse |
+            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
           if (!$makeAppx) {
-            throw "MakeAppx.exe was not found in the Windows SDK."
+            throw "MakeAppx.exe was not found."
           }
 
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-
-          & $makeAppx.FullName bundle /v /o `
-            /bv 1.1.0.0 `
-            /d packages `
-            /p "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "MakeAppx bundle failed with exit code $LASTEXITCODE"
+          if (!$signTool) {
+            throw "SignTool.exe was not found."
           }
 
-      - name: Sign GitHub distribution bundle
+          "MAKEAPPX=$($makeAppx.FullName)" >> $env:GITHUB_OUTPUT
+          "SIGNTOOL=$($signTool.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Sign GitHub distribution packages
         if: ${{ !inputs.store }}
         shell: pwsh
         run: |
@@ -152,56 +200,98 @@ jobs:
             -CertStoreLocation "Cert:\CurrentUser\My" `
             -HashAlgorithm SHA256
 
-          $signtool = Get-ChildItem `
-            "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
-            -Filter signtool.exe -Recurse |
-            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
+          $packages = @(
+            "packages/tic_tac_toe-x64.msix",
+            "packages/tic_tac_toe-arm64.msix"
+          )
 
-          if (!$signtool) {
-            throw "SignTool.exe was not found in the Windows SDK."
+          foreach ($package in $packages) {
+            & "${{ steps.sdk.outputs.SIGNTOOL }}" sign `
+              /fd SHA256 /s My /sha1 $cert.Thumbprint $package
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to sign $package"
+            }
           }
 
-          & $signtool.FullName sign /fd SHA256 /s My `
-            /sha1 $cert.Thumbprint `
-            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Signing the bundle failed."
-          }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
 
           Export-Certificate `
             -Cert $cert `
             -FilePath "dist/Tic-Tac-Toe-signing.cer" |
             Out-Null
 
-      - name: Upload GitHub distribution bundle
+          "SIGNING_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Create MSIX bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          & "${{ steps.sdk.outputs.MAKEAPPX }}" bundle /v /o `
+            /bv 1.1.0.0 `
+            /d packages `
+            /p "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "MakeAppx bundle failed."
+          }
+
+      - name: Sign GitHub distribution bundle
         if: ${{ !inputs.store }}
-        uses: actions/upload-artifact@v5
+        shell: pwsh
+        run: |
+          & "${{ steps.sdk.outputs.SIGNTOOL }}" sign `
+            /fd SHA256 /s My /sha1 $env:SIGNING_THUMBPRINT `
+            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to sign the MSIX bundle."
+          }
+
+      - name: Publish GitHub distribution to release
+        if: ${{ inputs.release_tag != '' && !inputs.store }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: pwsh
+        run: |
+          gh release view "$env:RELEASE_TAG" *> $null
+
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "$env:RELEASE_TAG" `
+              --target "$env:GITHUB_REF_NAME" `
+              --title "$env:RELEASE_TAG" `
+              --generate-notes
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not create GitHub Release $env:RELEASE_TAG"
+            }
+          }
+
+          gh release upload "$env:RELEASE_TAG" `
+            "dist/Tic-Tac-Toe-1.1.0.0.msixbundle" `
+            "dist/Tic-Tac-Toe-signing.cer" `
+            --clobber
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload the bundle to the GitHub Release."
+          }
+
+      - name: Upload GitHub distribution bundle artifact
+        if: ${{ !inputs.store }}
+        uses: actions/upload-artifact@v6
         with:
           name: tic-tac-toe-windows-msixbundle
           path: |
             dist/Tic-Tac-Toe-1.1.0.0.msixbundle
             dist/Tic-Tac-Toe-signing.cer
           if-no-files-found: error
-          retention-days: 14
 
-      - name: Upload Microsoft Store bundle
+      - name: Upload Microsoft Store bundle artifact
         if: ${{ inputs.store }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tic-tac-toe-store-msixbundle
           path: dist/Tic-Tac-Toe-1.1.0.0.msixbundle
           if-no-files-found: error
-          retention-days: 14
-      
-      - name: Publish bundle to GitHub Release
-        if: ${{ inputs.release_tag != '' && !inputs.store }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: |
-            dist/Tic-Tac-Toe-1.1.0.0.msixbundle
-            dist/Tic-Tac-Toe-signing.cer
-          fail_on_unmatched_files: true

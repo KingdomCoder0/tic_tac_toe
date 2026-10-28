@@ -41,6 +41,6 @@ msix_config:
   publisher_display_name: Patrick O'Connor
   identity_name: PatrickOConnor.Tic-Tac-ToeClassicGame
   publisher: CN=A3DC862A-65F6-47CB-AD5A-4F816BDE4C0C
-  msix_version: 1.1.0.0
+  msix_version: 1.1.0.1
   logo_path: assets/icons/Icon-512.png
   store: false

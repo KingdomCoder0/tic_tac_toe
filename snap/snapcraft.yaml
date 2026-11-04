@@ -1,5 +1,5 @@
 name: tic-tac-toe
-Title: Tic-Tac-Toe
+title: Tic-Tac-Toe
 version: 1.0.1
 summary: Game of X's and O's
 description: A simple Tic-Tac-Toe game implemented in Flutter

@@ -1,6 +1,6 @@
-name: tic-tac-toe
+name: kingdom-coder-tic-tac-toe
 title: Tic-Tac-Toe
-version: 1.0.1
+version: 1.1.0
 summary: Game of X's and O's
 description: A simple Tic-Tac-Toe game implemented in Flutter
 

@@ -1,0 +1,44 @@
+name: tic-tac-toe
+Title: Tic-Tac-Toe
+version: 1.0.1
+summary: Game of X's and O's
+description: A simple Tic-Tac-Toe game implemented in Flutter
+
+contact: https://github.com/KingdomCoder0
+issues: https://github.com/KingdomCoder0/tic_tac_toe/issues
+source-code: https://github.com/KingdomCoder0/tic_tac_toe
+website: https://kingdomcoder0.github.io/tic_tac_toe/
+license: MIT
+
+confinement: strict
+base: core22
+grade: stable
+
+slots:
+  dbus-tic-tac-toe:
+    interface: dbus
+    bus: session
+    name: org.bar.tic_tac_toe
+
+apps:
+  tic-tac-toe:
+    command: tic_tac_toe
+    extensions: [gnome] # gnome includes the libraries required by flutter
+    plugs:
+    - network
+    slots:
+      - dbus-tic-tac-toe
+parts:
+  tic-tac-toe:
+    source: .
+    plugin: flutter
+    flutter-target: lib/main.dart # The main entry-point file of the application
+
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+  arm64:
+    build-on: [arm64]
+    build-for: [arm64]

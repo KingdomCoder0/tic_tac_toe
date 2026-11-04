@@ -28,7 +28,7 @@ jobs:
         id: build
         uses: snapcore/action-build@v1
         with:
-          path: snap
+          path: .
 
       - name: Publish to Snap Store
         uses: snapcore/action-publish@v1

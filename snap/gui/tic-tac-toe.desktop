@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Tic-Tac-Toe
 Comment=Game of X's and O's
-Exec=tic_tac_toe
+Exec=kingdom-coder-tic-tac-toe.tic-tac-toe
 Icon=${SNAP}/meta/gui/tic-tac-toe.png
 Terminal=false
 Type=Application

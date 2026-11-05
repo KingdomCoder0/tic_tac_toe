@@ -1,6 +1,8 @@
 # Tic-Tac-Toe
 
-Application for playing X's and O's targeting all major platforms
+Flutter application for playing X's and O's. 
+
+The aim is to target all major platforms for release.
 
 ## Web
 Play the latest version online
@@ -9,13 +11,9 @@ Play the latest version online
 
 ## Desktop
 ### Windows
-[![Get it from Microsoft](https://get.microsoft.com/images/en-us%20dark.svg#gh-dark-mode-only)](https://apps.microsoft.com/detail/9PBWZPPPCWW3)
+[![Download from Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg#gh-dark-mode-only)](https://apps.microsoft.com/detail/9PBWZPPPCWW3#gh-dark-mode-only)
 
-[![Get it from Microsoft](https://get.microsoft.com/images/en-us%20light.svg#gh-light-mode-only)](https://apps.microsoft.com/detail/9PBWZPPPCWW3)
+[![Download from Microsoft Store](https://get.microsoft.com/images/en-us%20light.svg#gh-light-mode-only)](https://apps.microsoft.com/detail/9PBWZPPPCWW3#gh-light-mode-only)
 
 ### Linux
-[![kingdom-coder-tic-tac-toe](https://snapcraft.io/kingdom-coder-tic-tac-toe/badge.svg)](https://snapcraft.io/kingdom-coder-tic-tac-toe)
-
-[![Get it from the Snap Store](https://snapcraft.io/en/dark/install.svg#gh-dark-mode-only)](https://snapcraft.io/kingdom-coder-tic-tac-toe)
-
-[![Get it from the Snap Store](https://snapcraft.io/en/light/install.svg#gh-light-mode-only)](https://snapcraft.io/kingdom-coder-tic-tac-toe)
+[![Download from the Snap Store](https://snapcraft.io/kingdom-coder-tic-tac-toe/badge.svg)](https://snapcraft.io/kingdom-coder-tic-tac-toe)
